@@ -1,6 +1,5 @@
 use serde::{Serialize, Deserialize};
 use std::fmt::{self, Display};
-use std::str::FromStr;
 use std::collections::HashSet;
 use thiserror::Error;
 
@@ -59,16 +58,6 @@ impl Category {
 impl Display for Category {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.name)
-    }
-}
-
-impl FromStr for Category {
-    type Err = CategoryError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        // Since we don't have defaults, we just create a new category with the given name
-        // In a real implementation, we would check against the registry
-        Ok(Category::new(s, None))
     }
 }
 
@@ -179,12 +168,6 @@ mod tests {
         let category = Category::new("Food", None);
         
         assert_eq!(format!("{}", category), "Food");
-    }
-    
-    #[test]
-    fn category_from_str() {
-        let food = Category::from_str("Food").unwrap();
-        assert_eq!(food.name(), "Food");
     }
     
     #[test]
