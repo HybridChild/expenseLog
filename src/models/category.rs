@@ -115,15 +115,15 @@ impl CategoryRegistry {
     
     /// Remove a category
     pub fn remove_category(&mut self, name: &str) -> Result<(), CategoryError> {
-        let category = self.get_category(name).ok_or_else(|| {
-            CategoryError::InvalidCategory(format!("Category '{}' not found", name))
-        })?;
+        // Validate the category exists first
+        if !self.category_exists(name) {
+            return Err(CategoryError::InvalidCategory(
+                format!("Category '{}' not found", name)
+            ));
+        }
         
-        // Clone the name because we need to use it after consuming the reference
-        let category_name = category.name().to_string();
-        
-        // Remove the category
-        self.categories.remove(&Category::new(&category_name, None));
+        // Remove the category by creating a temporary one with the same name
+        self.categories.remove(&Category::new(name, None));
         
         Ok(())
     }
