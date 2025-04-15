@@ -1,6 +1,7 @@
 use serde::{Serialize, Deserialize};
 use chrono::NaiveDate;
 use thiserror::Error;
+use crate::models::category::{Category, CategoryError};
 
 #[derive(Debug, Error)]
 pub enum ExpenseError {
@@ -8,7 +9,7 @@ pub enum ExpenseError {
     InvalidAmount(String),
     
     #[error("Invalid expense category: {0}")]
-    InvalidCategory(String),
+    InvalidCategory(#[from] CategoryError),
     
     #[error("Invalid expense date: {0}")]
     InvalidDate(String),
@@ -18,13 +19,13 @@ pub enum ExpenseError {
 pub struct Expense {
     id: Option<i64>,
     amount: f64,
-    category: String, // We'll refine this to a Category type later
+    category: Category,
     date: NaiveDate,
     description: String,
 }
 
 impl Expense {
-    pub fn new(amount: f64, category: String, date: NaiveDate, description: String) -> Self {
+    pub fn new(amount: f64, category: Category, date: NaiveDate, description: String) -> Self {
         Self {
             id: None,
             amount,
@@ -36,7 +37,7 @@ impl Expense {
 
     pub fn new_validated(
         amount: f64, 
-        category: String, 
+        category: Category, 
         date: NaiveDate, 
         description: String
     ) -> Result<Self, ExpenseError> {
@@ -45,10 +46,7 @@ impl Expense {
             return Err(ExpenseError::InvalidAmount("amount cannot be negative".to_string()));
         }
         
-        // Validate category
-        if category.trim().is_empty() {
-            return Err(ExpenseError::InvalidCategory("category cannot be empty".to_string()));
-        }
+        // Category is already validated by the Category::new method
         
         // Validate date (example: don't allow future dates)
         let today = chrono::Local::now().naive_local().date();
@@ -65,6 +63,24 @@ impl Expense {
         })
     }
     
+    // Helper method that creates a Category and then an Expense in one step
+    pub fn with_category_name(
+        amount: f64,
+        category_name: &str,
+        category_description: Option<&str>,
+        date: NaiveDate,
+        description: String
+    ) -> Result<Self, ExpenseError> {
+        let category = Category::new(category_name, category_description)?;
+        
+        Self::new_validated(
+            amount,
+            category,
+            date,
+            description
+        )
+    }
+    
     pub fn id(&self) -> Option<i64> {
         self.id
     }
@@ -73,7 +89,7 @@ impl Expense {
         self.amount
     }
     
-    pub fn category(&self) -> &str {
+    pub fn category(&self) -> &Category {
         &self.category
     }
     
@@ -96,34 +112,72 @@ mod tests {
     #[test]
     fn create_expense() {
         let date = NaiveDate::from_ymd_opt(2025, 4, 11).unwrap();
+        let category = Category::new("Groceries", None).unwrap();
 
         let expense = Expense::new(
             42.50, 
-            "Groceries".to_string(), 
+            category, 
             date, 
             "Weekly shopping trip".to_string()
         );
         
         assert_eq!(expense.amount(), 42.50);
-        assert_eq!(expense.category(), "Groceries");
+        assert_eq!(expense.category().name(), "Groceries");
         assert_eq!(expense.date(), &date);
         assert_eq!(expense.description(), "Weekly shopping trip");
     }
     
     #[test]
+    fn create_expense_with_category_name() {
+        let date = NaiveDate::from_ymd_opt(2025, 4, 11).unwrap();
+
+        let expense = Expense::with_category_name(
+            42.50, 
+            "Groceries",
+            Some("Food and household items"),
+            date, 
+            "Weekly shopping trip".to_string()
+        ).unwrap();
+        
+        assert_eq!(expense.amount(), 42.50);
+        assert_eq!(expense.category().name(), "Groceries");
+        assert_eq!(expense.category().description(), Some("Food and household items"));
+        assert_eq!(expense.date(), &date);
+        assert_eq!(expense.description(), "Weekly shopping trip");
+    }
+    
+    #[test]
+    fn reject_empty_category_name() {
+        let date = NaiveDate::from_ymd_opt(2025, 4, 11).unwrap();
+
+        let result = Expense::with_category_name(
+            42.50, 
+            "",
+            None,
+            date, 
+            "Weekly shopping trip".to_string()
+        );
+        
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Category name cannot be empty"));
+    }
+    
+    #[test]
     fn expense_equality() {
         let date = NaiveDate::from_ymd_opt(2025, 4, 11).unwrap();
+        let category1 = Category::new("Groceries", None).unwrap();
+        let category2 = Category::new("Groceries", None).unwrap();
 
         let expense1 = Expense::new(
             42.50, 
-            "Groceries".to_string(), 
+            category1, 
             date, 
             "Weekly shopping trip".to_string()
         );
         
         let expense2 = Expense::new(
             42.50, 
-            "Groceries".to_string(), 
+            category2, 
             date, 
             "Weekly shopping trip".to_string()
         );
@@ -134,11 +188,12 @@ mod tests {
     #[test]
     fn validate_expense_amount() {
         let date = NaiveDate::from_ymd_opt(2025, 4, 11).unwrap();
+        let category = Category::new("Groceries", None).unwrap();
         
         // Test that negative amounts are rejected
         let result = Expense::new_validated(
             -50.0,
-            "Groceries".to_string(),
+            category.clone(),
             date,
             "Weekly shopping".to_string()
         );
@@ -152,7 +207,7 @@ mod tests {
         // Test that zero amount is allowed
         let result = Expense::new_validated(
             0.0,
-            "Groceries".to_string(),
+            category,
             date,
             "Free item".to_string()
         );
@@ -161,32 +216,14 @@ mod tests {
     }
     
     #[test]
-    fn validate_expense_category() {
-        let date = NaiveDate::from_ymd_opt(2025, 4, 11).unwrap();
-        
-        // Test that empty category is rejected
-        let result = Expense::new_validated(
-            50.0,
-            "".to_string(),
-            date,
-            "Weekly shopping".to_string()
-        );
-        
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "Invalid expense category: category cannot be empty"
-        );
-    }
-    
-    #[test]
     fn validate_expense_date() {
         // Test that future dates are rejected (if that's a business rule)
         let future_date = chrono::Local::now().naive_local().date() + chrono::Duration::days(10);
+        let category = Category::new("Groceries", None).unwrap();
         
         let result = Expense::new_validated(
             50.0,
-            "Groceries".to_string(),
+            category,
             future_date,
             "Future shopping".to_string()
         );
@@ -201,10 +238,11 @@ mod tests {
     #[test]
     fn serialize_expense() {
         let date = NaiveDate::from_ymd_opt(2025, 4, 11).unwrap();
+        let category = Category::new("Groceries", Some("Food and household items")).unwrap();
 
         let expense = Expense::new(
             42.50,
-            "Groceries".to_string(),
+            category,
             date,
             "Weekly shopping trip".to_string()
         );
@@ -215,6 +253,7 @@ mod tests {
         assert!(serialized.contains("amount"));
         assert!(serialized.contains("42.5"));
         assert!(serialized.contains("Groceries"));
+        assert!(serialized.contains("Food and household items"));
         assert!(serialized.contains("2025-04-11"));
         assert!(serialized.contains("Weekly shopping trip"));
     }
@@ -224,7 +263,10 @@ mod tests {
         let json = r#"{
             "id": null,
             "amount": 42.50,
-            "category": "Groceries",
+            "category": {
+                "name": "Groceries",
+                "description": "Food and household items"
+            },
             "date": "2025-04-11",
             "description": "Weekly shopping trip"
         }"#;
@@ -232,7 +274,8 @@ mod tests {
         let expense: Expense = serde_json::from_str(json).unwrap();
         
         assert_eq!(expense.amount(), 42.50);
-        assert_eq!(expense.category(), "Groceries");
+        assert_eq!(expense.category().name(), "Groceries");
+        assert_eq!(expense.category().description(), Some("Food and household items"));
         assert_eq!(
             expense.date(), 
             &NaiveDate::from_ymd_opt(2025, 4, 11).unwrap()
@@ -243,10 +286,11 @@ mod tests {
     #[test]
     fn roundtrip_serialization() {
         let date = NaiveDate::from_ymd_opt(2025, 4, 11).unwrap();
+        let category = Category::new("Groceries", Some("Food and household items")).unwrap();
 
         let original = Expense::new(
             42.50,
-            "Groceries".to_string(),
+            category,
             date,
             "Weekly shopping trip".to_string()
         );
