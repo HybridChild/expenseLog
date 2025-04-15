@@ -10,6 +10,7 @@ pub enum CategoryError {
     InvalidCategory(String),
 }
 
+// Keep the derive for CategoryType
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CategoryType {
     /// Built-in categories that are always available
@@ -18,24 +19,37 @@ pub enum CategoryType {
     Custom,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+// Remove PartialEq, Eq, and Hash from the derive
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Category {
     name: String,
     category_type: CategoryType,
+    description: Option<String>,
+}
+
+// Manual implementations
+impl PartialEq for Category {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name && self.category_type == other.category_type
+    }
+}
+
+impl Eq for Category {}
+
+impl std::hash::Hash for Category {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.name.hash(state);
+        self.category_type.hash(state);
+        // Deliberately skip hashing description
+    }
 }
 
 impl Category {
-    pub fn new_system(name: &str) -> Self {
+    pub fn new(name: &str, category_type: CategoryType, description: Option<&str>) -> Self {
         Self {
             name: name.to_string(),
-            category_type: CategoryType::System,
-        }
-    }
-
-    pub fn new_custom(name: &str) -> Self {
-        Self {
-            name: name.to_string(),
-            category_type: CategoryType::Custom,
+            category_type,
+            description: description.map(String::from),
         }
     }
 
@@ -45,6 +59,18 @@ impl Category {
 
     pub fn category_type(&self) -> &CategoryType {
         &self.category_type
+    }
+    
+    pub fn description(&self) -> Option<&str> {
+        self.description.as_deref()
+    }
+    
+    pub fn set_description(&mut self, description: &str) {
+        self.description = if description.trim().is_empty() {
+            None
+        } else {
+            Some(description.to_string())
+        };
     }
 }
 
@@ -78,12 +104,41 @@ impl FromStr for Category {
 /// Returns a list of all system categories
 fn get_system_categories() -> Vec<Category> {
     vec![
-        Category::new_system("Food"),
-        Category::new_system("Housing"),
-        Category::new_system("Transportation"),
-        Category::new_system("Utilities"),
-        Category::new_system("Healthcare"),
-        Category::new_system("Entertainment"),
+        Category::new(
+            "Food", 
+            CategoryType::System,
+            Some("Groceries, restaurants, takeout, etc.")
+        ),
+        Category::new(
+            "Housing", 
+            CategoryType::System,
+            Some("Rent, mortgage, property taxes, repairs")
+        ),
+        Category::new(
+            "Transportation", 
+            CategoryType::System,
+            Some("Public transit, gas, car maintenance, rideshares")
+        ),
+        Category::new(
+            "Utilities", 
+            CategoryType::System,
+            Some("Electricity, water, heating, internet, phone")
+        ),
+        Category::new(
+            "Healthcare", 
+            CategoryType::System,
+            Some("Doctor visits, medications, insurance")
+        ),
+        Category::new(
+            "Entertainment", 
+            CategoryType::System,
+            Some("Movies, games, subscriptions, hobbies")
+        ),
+        Category::new(
+            "Household", 
+            CategoryType::System,
+            Some("Furniture, kitchen ware, office supplies, etc.")
+        ),
     ]
 }
 
@@ -109,7 +164,7 @@ impl CategoryRegistry {
     pub fn load_custom_categories(&mut self, category_names: Vec<String>) {
         self.custom_categories.clear();
         for name in category_names {
-            self.custom_categories.insert(Category::new_custom(&name));
+            self.custom_categories.insert(Category::new(&name, CategoryType::Custom, None));
         }
     }
     
@@ -135,7 +190,7 @@ impl CategoryRegistry {
     }
     
     /// Add a new custom category
-    pub fn add_custom_category(&mut self, name: &str) -> Result<&Category, CategoryError> {
+    pub fn add_custom_category(&mut self, name: &str, description: Option<&str>) -> Result<&Category, CategoryError> {
         // Check if it already exists
         if self.category_exists(name) {
             return Err(CategoryError::InvalidCategory(
@@ -143,13 +198,12 @@ impl CategoryRegistry {
             ));
         }
         
-        let category = Category::new_custom(name);
+        let category = Category::new(name, CategoryType::Custom, description);
         self.custom_categories.insert(category);
         
         Ok(self.get_category(name).unwrap())
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -157,34 +211,40 @@ mod tests {
     use std::str::FromStr;
 
     #[test]
-    fn create_system_category() {
-        let category = Category::new_system("Food");
+    fn create_category() {
+        let category = Category::new("Food", CategoryType::System, None);
         
         assert_eq!(category.name(), "Food");
         assert_eq!(category.category_type(), &CategoryType::System);
-    }
-    
-    #[test]
-    fn create_custom_category() {
-        let category = Category::new_custom("Books");
+        assert_eq!(category.description(), None);
         
-        assert_eq!(category.name(), "Books");
-        assert_eq!(category.category_type(), &CategoryType::Custom);
+        let category_with_desc = Category::new(
+            "Household", 
+            CategoryType::System, 
+            Some("Furniture, kitchen ware, office supplies, etc.")
+        );
+        
+        assert_eq!(category_with_desc.name(), "Household");
+        assert_eq!(category_with_desc.description(), Some("Furniture, kitchen ware, office supplies, etc."));
     }
     
     #[test]
     fn category_equality() {
-        let cat1 = Category::new_system("Food");
-        let cat2 = Category::new_system("Food");
-        let cat3 = Category::new_system("Housing");
+        let cat1 = Category::new("Food", CategoryType::System, None);
+        let cat2 = Category::new("Food", CategoryType::System, None);
+        let cat3 = Category::new("Housing", CategoryType::System, None);
         
         assert_eq!(cat1, cat2);
         assert_ne!(cat1, cat3);
+        
+        // Description doesn't affect equality (only name and type do)
+        let cat4 = Category::new("Food", CategoryType::System, Some("Description"));
+        assert_eq!(cat1, cat4);
     }
     
     #[test]
     fn category_display() {
-        let category = Category::new_system("Food");
+        let category = Category::new("Food", CategoryType::System, None);
         
         assert_eq!(format!("{}", category), "Food");
     }
@@ -225,7 +285,6 @@ mod tests {
     #[test]
     fn load_custom_categories() {
         let mut registry = CategoryRegistry::new();
-        
         let custom_categories = vec![
             "Books".to_string(),
             "Hobbies".to_string(),
@@ -241,22 +300,62 @@ mod tests {
     }
     
     #[test]
+    fn add_custom_category() {
+        let mut registry = CategoryRegistry::new();
+        
+        // Add a new custom category
+        let result = registry.add_custom_category("Software", Some("Apps, subscriptions, tools"));
+        assert!(result.is_ok());
+        
+        // Verify it exists in the registry
+        assert!(registry.category_exists("Software"));
+        
+        let category = registry.get_category("Software").unwrap();
+        assert_eq!(category.name(), "Software");
+        assert_eq!(category.category_type(), &CategoryType::Custom);
+        assert_eq!(category.description(), Some("Apps, subscriptions, tools"));
+        
+        // Try adding a duplicate
+        let result = registry.add_custom_category("Software", None);
+        assert!(result.is_err());
+    }
+    
+    #[test]
+    fn update_category_description() {
+        let mut category = Category::new("Household", CategoryType::System, None);
+        assert_eq!(category.description(), None);
+        
+        category.set_description("Furniture, kitchen ware, office supplies, etc.");
+        assert_eq!(category.description(), Some("Furniture, kitchen ware, office supplies, etc."));
+        
+        // Test clearing description
+        category.set_description("");
+        assert_eq!(category.description(), None);
+    }
+    
+    #[test]
     fn serialize_category() {
-        let category = Category::new_system("Food");
+        let category = Category::new(
+            "Household", 
+            CategoryType::System, 
+            Some("Furniture, kitchen ware, office supplies, etc.")
+        );
         
         let serialized = serde_json::to_string(&category).unwrap();
         
-        assert!(serialized.contains("Food"));
+        assert!(serialized.contains("Household"));
         assert!(serialized.contains("System"));
+        assert!(serialized.contains("Furniture, kitchen ware"));
     }
     
     #[test]
     fn deserialize_category() {
-        let json = r#"{"name":"Food","category_type":"System"}"#;
+        let json = r#"{"name":"Food","category_type":"System","description":"Groceries and restaurants"}"#;
         
         let category: Category = serde_json::from_str(json).unwrap();
         
         assert_eq!(category.name(), "Food");
         assert_eq!(category.category_type(), &CategoryType::System);
+        assert_eq!(category.description(), Some("Groceries and restaurants"));
     }
 }
