@@ -31,11 +31,17 @@ impl std::hash::Hash for Category {
 }
 
 impl Category {
-    pub fn new(name: &str, description: Option<&str>) -> Self {
-        Self {
+    /// Creates a new Category with the given name and description.
+    /// Returns an error if the name is empty.
+    pub fn new(name: &str, description: Option<&str>) -> Result<Self, CategoryError> {
+        if name.trim().is_empty() {
+            return Err(CategoryError::InvalidCategory("Category name cannot be empty".to_string()));
+        }
+        
+        Ok(Self {
             name: name.to_string(),
             description: description.map(String::from),
-        }
+        })
     }
 
     pub fn name(&self) -> &str {
@@ -107,7 +113,7 @@ impl CategoryRegistry {
             ));
         }
         
-        let category = Category::new(name, description);
+        let category = Category::new(name, description)?;
         self.categories.insert(category);
         
         Ok(self.get_category(name).unwrap())
@@ -122,8 +128,14 @@ impl CategoryRegistry {
             ));
         }
         
-        // Remove the category by creating a temporary one with the same name
-        self.categories.remove(&Category::new(name, None));
+        // Create a temporary category for removal
+        // Since we're only using it for removal based on name, the validation in new() can be bypassed
+        let temp_category = Category {
+            name: name.to_string(),
+            description: None,
+        };
+        
+        self.categories.remove(&temp_category);
         
         Ok(())
     }
@@ -135,7 +147,7 @@ mod tests {
 
     #[test]
     fn create_category() {
-        let category = Category::new("Food", None);
+        let category = Category::new("Food", None).unwrap();
         
         assert_eq!(category.name(), "Food");
         assert_eq!(category.description(), None);
@@ -143,29 +155,44 @@ mod tests {
         let category_with_desc = Category::new(
             "Household", 
             Some("Furniture, kitchen ware, office supplies, etc.")
-        );
+        ).unwrap();
         
         assert_eq!(category_with_desc.name(), "Household");
         assert_eq!(category_with_desc.description(), Some("Furniture, kitchen ware, office supplies, etc."));
     }
     
     #[test]
+    fn reject_empty_category_name() {
+        let result = Category::new("", None);
+        
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "Invalid category: Category name cannot be empty"
+        );
+        
+        // Also test with whitespace-only name
+        let result = Category::new("   ", None);
+        assert!(result.is_err());
+    }
+    
+    #[test]
     fn category_equality() {
-        let cat1 = Category::new("Food", None);
-        let cat2 = Category::new("Food", None);
-        let cat3 = Category::new("Housing", None);
+        let cat1 = Category::new("Food", None).unwrap();
+        let cat2 = Category::new("Food", None).unwrap();
+        let cat3 = Category::new("Housing", None).unwrap();
         
         assert_eq!(cat1, cat2);
         assert_ne!(cat1, cat3);
         
         // Description doesn't affect equality (only name does)
-        let cat4 = Category::new("Food", Some("Description"));
+        let cat4 = Category::new("Food", Some("Description")).unwrap();
         assert_eq!(cat1, cat4);
     }
     
     #[test]
     fn category_display() {
-        let category = Category::new("Food", None);
+        let category = Category::new("Food", None).unwrap();
         
         assert_eq!(format!("{}", category), "Food");
     }
@@ -182,8 +209,8 @@ mod tests {
     fn load_categories() {
         let mut registry = CategoryRegistry::new();
         let categories = vec![
-            Category::new("Books", None),
-            Category::new("Hobbies", Some("Various hobby expenses")),
+            Category::new("Books", None).unwrap(),
+            Category::new("Hobbies", Some("Various hobby expenses")).unwrap(),
         ];
         
         registry.load_categories(categories);
@@ -211,6 +238,10 @@ mod tests {
         // Try adding a duplicate
         let result = registry.add_category("Software", None);
         assert!(result.is_err());
+        
+        // Try adding a category with empty name
+        let result = registry.add_category("", None);
+        assert!(result.is_err());
     }
     
     #[test]
@@ -233,7 +264,7 @@ mod tests {
     
     #[test]
     fn update_category_description() {
-        let mut category = Category::new("Household", None);
+        let mut category = Category::new("Household", None).unwrap();
         assert_eq!(category.description(), None);
         
         category.set_description("Furniture, kitchen ware, office supplies, etc.");
@@ -249,7 +280,7 @@ mod tests {
         let category = Category::new(
             "Household", 
             Some("Furniture, kitchen ware, office supplies, etc.")
-        );
+        ).unwrap();
         
         let serialized = serde_json::to_string(&category).unwrap();
         

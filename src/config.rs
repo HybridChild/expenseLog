@@ -4,7 +4,7 @@ use std::fs;
 use std::io;
 use thiserror::Error;
 
-use crate::models::category::{Category, CategoryRegistry};
+use crate::models::category::{Category, CategoryRegistry, CategoryError};
 
 #[derive(Debug, Error)]
 pub enum ConfigError {
@@ -13,6 +13,9 @@ pub enum ConfigError {
     
     #[error("YAML error: {0}")]
     YamlError(#[from] serde_yaml::Error),
+    
+    #[error("Category error: {0}")]
+    CategoryError(#[from] CategoryError),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -23,26 +26,28 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn default() -> Self {
-        Self {
+    pub fn default() -> Result<Self, ConfigError> {
+        let default_categories = vec![
+            Category::new("Food", Some("Groceries, restaurants, takeout"))?,
+            Category::new("Housing", Some("Rent, mortgage, repairs"))?,
+            Category::new("Transportation", Some("Public transit, gas, car maintenance"))?,
+            Category::new("Utilities", Some("Electricity, water, internet"))?,
+            Category::new("Healthcare", Some("Doctor visits, medications"))?,
+            Category::new("Entertainment", Some("Movies, games, hobbies"))?,
+            Category::new("Personal", Some("Clothing, haircuts, gym"))?,
+            Category::new("Education", Some("Tuition, books, courses"))?,
+        ];
+        
+        Ok(Self {
             database_path: "expense_log.db".to_string(),
             currency_symbol: "$".to_string(),
-            categories: vec![
-                Category::new("Food", Some("Groceries, restaurants, takeout")),
-                Category::new("Housing", Some("Rent, mortgage, repairs")),
-                Category::new("Transportation", Some("Public transit, gas, car maintenance")),
-                Category::new("Utilities", Some("Electricity, water, internet")),
-                Category::new("Healthcare", Some("Doctor visits, medications")),
-                Category::new("Entertainment", Some("Movies, games, hobbies")),
-                Category::new("Personal", Some("Clothing, haircuts, gym")),
-                Category::new("Education", Some("Tuition, books, courses")),
-            ],
-        }
+            categories: default_categories,
+        })
     }
     
     pub fn load(path: &Path) -> Result<Self, ConfigError> {
         if !path.exists() {
-            return Ok(Self::default());
+            return Self::default();
         }
         
         let content = fs::read_to_string(path)?;
@@ -67,11 +72,10 @@ mod tests {
     use super::*;
     use std::io::Write;
     use tempfile::NamedTempFile;
-    use crate::models::category::Category;
 
     #[test]
     fn test_default_config() {
-        let config = Config::default();
+        let config = Config::default().unwrap();
         
         // Verify default values
         assert_eq!(config.database_path, "expense_log.db");
@@ -110,28 +114,30 @@ categories:
     }
     
     #[test]
-    fn test_save_config() {
-        let mut config = Config::default();
+    fn test_save_config() -> Result<(), ConfigError> {
+        let mut config = Config::default()?;
 
         config.database_path = "custom.db".to_string();
         config.currency_symbol = "£".to_string();
         config.categories = vec![
-            Category::new("Custom Category", Some("A custom category")),
+            Category::new("Custom Category", Some("A custom category"))?,
         ];
         
         // Create a temporary file for saving
         let file = NamedTempFile::new().unwrap();
         
         // Save the config
-        config.save(file.path()).unwrap();
+        config.save(file.path())?;
         
         // Load it back to verify
-        let loaded_config = Config::load(file.path()).unwrap();
+        let loaded_config = Config::load(file.path())?;
         
         assert_eq!(loaded_config.database_path, "custom.db");
         assert_eq!(loaded_config.currency_symbol, "£");
         assert_eq!(loaded_config.categories.len(), 1);
         assert_eq!(loaded_config.categories[0].name(), "Custom Category");
+        
+        Ok(())
     }
     
     #[test]
@@ -146,13 +152,13 @@ categories:
     }
     
     #[test]
-    fn test_configure_category_registry() {
+    fn test_configure_category_registry() -> Result<(), ConfigError> {
         let config = Config {
             database_path: "test.db".to_string(),
             currency_symbol: "$".to_string(),
             categories: vec![
-                Category::new("Food", Some("Groceries")),
-                Category::new("Housing", None),
+                Category::new("Food", Some("Groceries"))?,
+                Category::new("Housing", None)?,
             ],
         };
         
@@ -162,5 +168,7 @@ categories:
         assert!(registry.category_exists("Food"));
         assert!(registry.category_exists("Housing"));
         assert_eq!(registry.all_categories().len(), 2);
+        
+        Ok(())
     }
 }
