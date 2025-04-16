@@ -1,5 +1,5 @@
 use std::path::Path;
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, params, types::Type};
 use chrono::{NaiveDate, Datelike};
 
 use crate::models::expense::Expense;
@@ -96,12 +96,12 @@ impl ExpenseRepository for SqliteExpenseRepository {
                 let description: String = row.get(5)?;
                 
                 let date = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")
-                    .map_err(|_| rusqlite::Error::InvalidColumnType(4, "Invalid date format".to_string(), rusqlite::types::Type::Text))?;
+                    .map_err(|_| rusqlite::Error::InvalidColumnType(4, "Invalid date format".to_string(), Type::Text))?;
                 
                 let category = Category::new(
                     &category_name, 
                     category_description.as_deref()
-                ).map_err(|_| rusqlite::Error::InvalidColumnType(2, "Invalid category".to_string(), rusqlite::types::Type::Text))?;
+                ).map_err(|_| rusqlite::Error::InvalidColumnType(2, "Invalid category".to_string(), Type::Text))?;
                 
                 let expense = Expense::new(amount, category, date, description).with_id(id);
                 
@@ -132,12 +132,12 @@ impl ExpenseRepository for SqliteExpenseRepository {
             let description: String = row.get(5)?;
             
             let date = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")
-                .map_err(|_| rusqlite::Error::InvalidColumnType(4, "Invalid date format".to_string(), rusqlite::types::Type::Text))?;
+                .map_err(|_| rusqlite::Error::InvalidColumnType(4, "Invalid date format".to_string(), Type::Text))?;
             
             let category = Category::new(
                 &category_name, 
                 category_description.as_deref()
-            ).map_err(|_| rusqlite::Error::InvalidColumnType(2, "Invalid category".to_string(), rusqlite::types::Type::Text))?;
+            ).map_err(|_| rusqlite::Error::InvalidColumnType(2, "Invalid category".to_string(), Type::Text))?;
             
             let expense = Expense::new(amount, category, date, description).with_id(id);
             
@@ -169,12 +169,12 @@ impl ExpenseRepository for SqliteExpenseRepository {
             let description: String = row.get(5)?;
             
             let date = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")
-                .map_err(|_| rusqlite::Error::InvalidColumnType(4, "Invalid date format".to_string(), rusqlite::types::Type::Text))?;
+                .map_err(|_| rusqlite::Error::InvalidColumnType(4, "Invalid date format".to_string(), Type::Text))?;
             
             let category = Category::new(
                 &category_name, 
                 category_description.as_deref()
-            ).map_err(|_| rusqlite::Error::InvalidColumnType(2, "Invalid category".to_string(), rusqlite::types::Type::Text))?;
+            ).map_err(|_| rusqlite::Error::InvalidColumnType(2, "Invalid category".to_string(), Type::Text))?;
             
             let expense = Expense::new(amount, category, date, description).with_id(id);
             
@@ -206,12 +206,12 @@ impl ExpenseRepository for SqliteExpenseRepository {
             let description: String = row.get(5)?;
             
             let date = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")
-                .map_err(|_| rusqlite::Error::InvalidColumnType(4, "Invalid date format".to_string(), rusqlite::types::Type::Text))?;
+                .map_err(|_| rusqlite::Error::InvalidColumnType(4, "Invalid date format".to_string(), Type::Text))?;
             
             let category = Category::new(
                 &category_name, 
                 category_description.as_deref()
-            ).map_err(|_| rusqlite::Error::InvalidColumnType(2, "Invalid category".to_string(), rusqlite::types::Type::Text))?;
+            ).map_err(|_| rusqlite::Error::InvalidColumnType(2, "Invalid category".to_string(), Type::Text))?;
             
             let expense = Expense::new(amount, category, date, description).with_id(id);
             
