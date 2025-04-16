@@ -35,6 +35,12 @@ impl Expense {
         }
     }
 
+    // Method to set ID using method chaining
+    pub fn with_id(mut self, id: i64) -> Self {
+        self.id = Some(id);
+        self
+    }
+
     pub fn new_validated(
         amount: f64, 
         category: Category, 
@@ -100,6 +106,38 @@ impl Expense {
     pub fn description(&self) -> &str {
         &self.description
     }
+
+    pub fn set_id(&mut self, id: i64) {
+        self.id = Some(id);
+    }
+    
+    pub fn set_amount(&mut self, amount: f64) -> Result<(), ExpenseError> {
+        if amount < 0.0 {
+            return Err(ExpenseError::InvalidAmount("amount cannot be negative".to_string()));
+        }
+
+        self.amount = amount;
+        Ok(())
+    }
+    
+    pub fn set_category(&mut self, category: Category) {
+        self.category = category;
+    }
+    
+    pub fn set_date(&mut self, date: NaiveDate) -> Result<(), ExpenseError> {
+        let today = chrono::Local::now().naive_local().date();
+
+        if date > today {
+            return Err(ExpenseError::InvalidDate("date cannot be in the future".to_string()));
+        }
+
+        self.date = date;
+        Ok(())
+    }
+    
+    pub fn set_description(&mut self, description: String) {
+        self.description = description;
+    }
 }
 
 
@@ -160,6 +198,119 @@ mod tests {
         
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Category name cannot be empty"));
+    }
+
+    #[test]
+    fn test_with_id_method_chaining() {
+        let date = NaiveDate::from_ymd_opt(2025, 4, 11).unwrap();
+        let category = Category::new("Groceries", None).unwrap();
+        
+        let expense = Expense::new(
+            42.50, 
+            category, 
+            date, 
+            "Weekly shopping trip".to_string()
+        ).with_id(123);
+        
+        assert_eq!(expense.id(), Some(123));
+        assert_eq!(expense.amount(), 42.50);
+    }
+    
+    #[test]
+    fn test_set_id_mutate() {
+        let date = NaiveDate::from_ymd_opt(2025, 4, 11).unwrap();
+        let category = Category::new("Groceries", None).unwrap();
+        
+        let mut expense = Expense::new(
+            42.50, 
+            category, 
+            date, 
+            "Weekly shopping trip".to_string()
+        );
+        
+        assert_eq!(expense.id(), None);
+        expense.set_id(456);
+        assert_eq!(expense.id(), Some(456));
+    }
+    
+    #[test]
+    fn test_set_amount() {
+        let date = NaiveDate::from_ymd_opt(2025, 4, 11).unwrap();
+        let category = Category::new("Groceries", None).unwrap();
+        
+        let mut expense = Expense::new(
+            42.50, 
+            category, 
+            date, 
+            "Weekly shopping trip".to_string()
+        );
+        
+        expense.set_amount(55.75).unwrap();
+        assert_eq!(expense.amount(), 55.75);
+        
+        // Test validation
+        let result = expense.set_amount(-10.0);
+        assert!(result.is_err());
+        assert_eq!(expense.amount(), 55.75); // Amount shouldn't change
+    }
+    
+    #[test]
+    fn test_set_category() {
+        let date = NaiveDate::from_ymd_opt(2025, 4, 11).unwrap();
+        let grocery_category = Category::new("Groceries", None).unwrap();
+        let restaurant_category = Category::new("Restaurant", Some("Eating out")).unwrap();
+        
+        let mut expense = Expense::new(
+            42.50, 
+            grocery_category, 
+            date, 
+            "Weekly shopping trip".to_string()
+        );
+        
+        assert_eq!(expense.category().name(), "Groceries");
+        
+        expense.set_category(restaurant_category);
+        assert_eq!(expense.category().name(), "Restaurant");
+        assert_eq!(expense.category().description(), Some("Eating out"));
+    }
+    
+    #[test]
+    fn test_set_date() {
+        let initial_date = NaiveDate::from_ymd_opt(2025, 4, 11).unwrap();
+        let category = Category::new("Groceries", None).unwrap();
+        
+        let mut expense = Expense::new(
+            42.50, 
+            category, 
+            initial_date, 
+            "Weekly shopping trip".to_string()
+        );
+        
+        let new_date = NaiveDate::from_ymd_opt(2025, 4, 5).unwrap();
+        expense.set_date(new_date).unwrap();
+        assert_eq!(expense.date(), &new_date);
+        
+        // Test validation for future dates
+        let future_date = chrono::Local::now().naive_local().date() + chrono::Duration::days(10);
+        let result = expense.set_date(future_date);
+        assert!(result.is_err());
+        assert_eq!(expense.date(), &new_date); // Date shouldn't change
+    }
+    
+    #[test]
+    fn test_set_description() {
+        let date = NaiveDate::from_ymd_opt(2025, 4, 11).unwrap();
+        let category = Category::new("Groceries", None).unwrap();
+        
+        let mut expense = Expense::new(
+            42.50, 
+            category, 
+            date, 
+            "Weekly shopping trip".to_string()
+        );
+        
+        expense.set_description("Monthly grocery run".to_string());
+        assert_eq!(expense.description(), "Monthly grocery run");
     }
     
     #[test]
