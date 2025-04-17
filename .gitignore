@@ -1,4 +1,5 @@
 .DS_Store
+.vscode
 /target
 expense_log.db
 expense_log.yaml
