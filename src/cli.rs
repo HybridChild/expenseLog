@@ -169,11 +169,11 @@ pub mod helpers {
     pub fn parse_date_range(from: Option<String>, to: Option<String>) -> Result<(NaiveDate, NaiveDate), CliError> {
         let today = Local::now().naive_local().date();
         
-        // Default "from" is 30 days ago
+        // Default "from" is 1 year ago
         let from_date = match from {
             Some(date_str) => NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")
                 .map_err(|_| CliError::InvalidDate(format!("Could not parse 'from' date: {}", date_str)))?,
-            None => today - chrono::Duration::days(30),
+            None => today - chrono::Duration::days(365),
         };
         
         // Default "to" is today
