@@ -39,7 +39,7 @@ pub struct AddArgs {
     pub category: String,
     
     /// Date of expense (YYYY-MM-DD format)
-    #[arg(short, long)]
+    #[arg(short = 't', long)]
     pub date: Option<String>,
     
     /// Description of the expense
