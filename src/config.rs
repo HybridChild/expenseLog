@@ -28,14 +28,17 @@ pub struct Config {
 impl Config {
     pub fn default() -> Result<Self, ConfigError> {
         let default_categories = vec![
-            Category::new("Food", Some("Groceries, restaurants, takeout"))?,
-            Category::new("Housing", Some("Rent, mortgage, repairs"))?,
-            Category::new("Transportation", Some("Public transit, gas, car maintenance"))?,
-            Category::new("Utilities", Some("Electricity, water, internet"))?,
-            Category::new("Healthcare", Some("Doctor visits, medications"))?,
-            Category::new("Entertainment", Some("Movies, games, hobbies"))?,
-            Category::new("Personal", Some("Clothing, haircuts, gym"))?,
-            Category::new("Education", Some("Tuition, books, courses"))?,
+            Category::new("Clothes", Some("Apparel, footwear, accessories, outerwear"))?,
+            Category::new("Dining", Some("Restaurants, cafes, takeaway, grab-and-go food and coffee"))?,
+            Category::new("Groceries", Some("Food, household essentials, pantry items"))?,
+            Category::new("Healthcare", Some("Medical visits, treatments, occasional medications"))?,
+            Category::new("Hobbies", Some("Books, games, equipment, collecables, classes"))?,
+            Category::new("Household", Some("Furniture, kitchenware, office supplies, tools"))?,
+            Category::new("Indulgences", Some("Cigarettes, drugs, gambling"))?,
+            Category::new("Miscellaneous", Some("One-off expenses, unclassified items"))?,
+            Category::new("Socializing", Some("Events, bars, gifts, parties, group activities"))?,
+            Category::new("Transportation", Some("Train, bus, taxi, car rentals, fuel, fares"))?,
+            Category::new("Upkeep", Some("Repairs, replacement parts, haircuts, laundry"))?,
         ];
         
         Ok(Self {

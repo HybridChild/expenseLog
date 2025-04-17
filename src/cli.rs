@@ -4,7 +4,7 @@ use crate::models::category::CategoryRegistry;
 
 #[derive(Parser)]
 #[command(name = "expense_log")]
-#[command(about = "A simple CLI expense tracker")]
+#[command(about = "A simple CLI tool for tracking non-recurring expenses")]
 #[command(version)]
 pub struct Cli {
     /// Path to the config file
