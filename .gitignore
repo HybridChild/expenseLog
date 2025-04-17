@@ -1,2 +1,4 @@
 .DS_Store
 /target
+expense_log.db
+expense_log.yaml
