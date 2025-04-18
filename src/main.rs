@@ -38,7 +38,7 @@ fn main() {
         Some(Commands::Category(args)) => app.manage_categories(args.clone()),
         None => {
             // No command specified, show usage
-            println!("expense_log - A simple expense tracking CLI");
+            println!("expense_log - A simple CLI tool for tracking non-recurring expenses");
             println!("\nUsage examples:");
             println!("  expense_log add 42.50 Food --date 2025-04-15 --description \"Groceries\"");
             println!("  expense_log list --category Food");
